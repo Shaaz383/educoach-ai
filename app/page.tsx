@@ -11,17 +11,37 @@ interface Message {
 export default function Home() {
   const [message, setMessage] = useState<string>("");
   const [history, setHistory] = useState<Message[]>([]);
+  const [hasLoadedHistory, setHasLoadedHistory] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [topics, setTopics] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem("educoach-history");
+      if (saved) {
+        setHistory(JSON.parse(saved) as Message[]);
+      }
+    } catch {
+      // ignore invalid storage
+    } finally {
+      setHasLoadedHistory(true);
+    }
+  }, []);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [history]);
+
+  useEffect(() => {
+    if (!hasLoadedHistory) return;
+    localStorage.setItem("educoach-history", JSON.stringify(history));
+  }, [history, hasLoadedHistory]);
 
   function handleNewChat(): void {
     setHistory([]);
     setMessage("");
+    localStorage.removeItem("educoach-history");
   }
 
   async function sendMessage(): Promise<void> {
