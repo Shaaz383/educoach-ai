@@ -2,11 +2,16 @@
 import { useState } from "react";
 import Sidebar from "./components/Sidebar";
 
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 export default function Home() {
   const [message, setMessage] = useState("");
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
-  const [topics, setTopics] = useState([]);
+  const [topics, setTopics] = useState<string[]>([]);
 
   function handleNewChat() {
     setHistory([]);
@@ -17,7 +22,7 @@ export default function Home() {
     if (!message.trim() || loading) return;
     setLoading(true);
 
-    const newHistory = [
+    const newHistory: ChatMessage[] = [
       ...history,
       { role: "user", content: message },
     ];
@@ -38,6 +43,10 @@ export default function Home() {
 
     // Streaming response handle karo
     if (res.headers.get("content-type")?.includes("text/plain")) {
+      if (!res.body) {
+        setLoading(false);
+        return;
+      }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let fullReply = "";
@@ -195,4 +204,4 @@ export default function Home() {
       </div>
     </div>
   );
-}
+}  
