@@ -2,16 +2,11 @@
 import { useState } from "react";
 import Sidebar from "./components/Sidebar";
 
-type ChatMessage = {
-  role: "user" | "assistant";
-  content: string;
-};
-
 export default function Home() {
   const [message, setMessage] = useState("");
-  const [history, setHistory] = useState<ChatMessage[]>([]);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [topics, setTopics] = useState<string[]>([]);
+  const [topics, setTopics] = useState([]);
 
   function handleNewChat() {
     setHistory([]);
@@ -22,7 +17,7 @@ export default function Home() {
     if (!message.trim() || loading) return;
     setLoading(true);
 
-    const newHistory: ChatMessage[] = [
+    const newHistory = [
       ...history,
       { role: "user", content: message },
     ];
@@ -41,16 +36,37 @@ export default function Home() {
       body: JSON.stringify({ messages: newHistory }),
     });
 
-    const data = await res.json();
+    // Streaming response handle karo
+    if (res.headers.get("content-type")?.includes("text/plain")) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let fullReply = "";
 
-    setHistory((prev) => {
-      const updated = [...prev];
-      updated[updated.length - 1] = {
-        role: "assistant",
-        content: data.reply || "Something went wrong.",
-      };
-      return updated;
-    });
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        fullReply += decoder.decode(value);
+        setHistory((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            role: "assistant",
+            content: fullReply,
+          };
+          return updated;
+        });
+      }
+    } else {
+      // Fallback JSON response
+      const data = await res.json();
+      setHistory((prev) => {
+        const updated = [...prev];
+        updated[updated.length - 1] = {
+          role: "assistant",
+          content: data.reply || "Something went wrong.",
+        };
+        return updated;
+      });
+    }
 
     setLoading(false);
   }
@@ -60,20 +76,16 @@ export default function Home() {
     "What is an AI Agent?",
     "Generate 5 JavaScript quiz questions",
     "Explain async/await simply",
-    "How does RAG work in AI?",
-    "Explain useEffect hook",
+    "Weather in Mumbai",
+    "What is 1234 * 5678?",
   ];
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-
-      {/* Sidebar */}
       <Sidebar topics={topics} onNewChat={handleNewChat} />
 
-      {/* Main Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-
-        {/* Top Navbar */}
+        {/* Navbar */}
         <div className="bg-white border-b border-gray-100 px-6 py-3.5 flex items-center gap-3 shrink-0">
           <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center shrink-0">
             <span className="text-indigo-600 text-xs font-bold">E</span>
@@ -88,10 +100,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Messages Area */}
+        {/* Messages */}
         <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-4">
-
-          {/* Welcome Screen */}
           {history.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full gap-6 text-center">
               <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-lg">
@@ -119,7 +129,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Chat Messages */}
           {history.map((msg, i) => (
             <div
               key={i}
@@ -127,14 +136,11 @@ export default function Home() {
                 msg.role === "user" ? "justify-end" : "justify-start"
               }`}
             >
-              {/* AI Avatar */}
               {msg.role === "assistant" && (
                 <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 mt-1">
                   E
                 </div>
               )}
-
-              {/* Message Bubble */}
               <div
                 className={`max-w-lg px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
                   msg.role === "user"
@@ -149,8 +155,6 @@ export default function Home() {
                     <span className="inline-block w-1.5 h-4 bg-indigo-400 ml-1 animate-pulse rounded" />
                   )}
               </div>
-
-              {/* User Avatar */}
               {msg.role === "user" && (
                 <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 text-xs font-bold shrink-0 mt-1">
                   U
@@ -160,7 +164,7 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Input Area */}
+        {/* Input */}
         <div className="bg-white border-t border-gray-100 px-6 py-4 shrink-0">
           <div className="flex gap-3 items-end max-w-4xl mx-auto">
             <textarea
@@ -188,7 +192,6 @@ export default function Home() {
             Enter to send · Shift+Enter for new line
           </p>
         </div>
-
       </div>
     </div>
   );
