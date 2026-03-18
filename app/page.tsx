@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatMessage from "./components/ChatMessage";
+import { useState, useRef, useEffect } from "react";
 
 interface Message {
   role: "user" | "assistant";
@@ -13,6 +13,11 @@ export default function Home() {
   const [history, setHistory] = useState<Message[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [topics, setTopics] = useState<string[]>([]);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [history]);
 
   function handleNewChat(): void {
     setHistory([]);
@@ -155,6 +160,7 @@ export default function Home() {
               }
             />
           ))}
+          <div ref={bottomRef} />
         </div>
 
         {/* Input */}

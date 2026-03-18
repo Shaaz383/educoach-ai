@@ -104,6 +104,14 @@ export default function ChatMessage({
         >
           {content}
         </ReactMarkdown>
+        {role === "assistant" && !isStreaming && content && (
+          <button
+            onClick={() => void navigator.clipboard.writeText(content)}
+            className="mt-2 text-xs text-gray-300 hover:text-gray-500 transition-colors flex items-center gap-1"
+          >
+            Copy
+          </button>
+        )}
         {isStreaming && (
           <span className="inline-block w-1.5 h-4 bg-indigo-400 ml-1 animate-pulse rounded" />
         )}
