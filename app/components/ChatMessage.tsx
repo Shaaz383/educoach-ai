@@ -1,9 +1,17 @@
 import ReactMarkdown from "react-markdown";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
   isStreaming?: boolean;
+}
+
+interface CodeProps {
+  inline?: boolean;
+  className?: string;
+  children?: React.ReactNode;
 }
 
 export default function ChatMessage({
@@ -29,10 +37,9 @@ export default function ChatMessage({
       <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 mt-1">
         E
       </div>
-      <div className="max-w-lg px-4 py-3 rounded-2xl rounded-tl-sm text-sm leading-relaxed bg-white border border-gray-100 text-gray-700 shadow-sm">
+      <div className="max-w-xl px-4 py-3 rounded-2xl rounded-tl-sm text-sm leading-relaxed bg-white border border-gray-100 text-gray-700 shadow-sm">
         <ReactMarkdown
           components={{
-            // Headings
             h1: ({ children }) => (
               <h1 className="text-lg font-bold text-gray-800 mb-2 mt-1">
                 {children}
@@ -48,37 +55,12 @@ export default function ChatMessage({
                 {children}
               </h3>
             ),
-            // Paragraph
             p: ({ children }) => (
               <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
             ),
-            // Bold
             strong: ({ children }) => (
               <strong className="font-semibold text-gray-800">{children}</strong>
             ),
-            // Inline code
-            code: ({ children, className }) => {
-              const isBlock = className?.includes("language-");
-              if (isBlock) {
-                return (
-                  <code className="block bg-gray-900 text-green-400 text-xs rounded-lg px-4 py-3 my-2 overflow-x-auto font-mono whitespace-pre">
-                    {children}
-                  </code>
-                );
-              }
-              return (
-                <code className="bg-gray-100 text-indigo-600 text-xs px-1.5 py-0.5 rounded font-mono">
-                  {children}
-                </code>
-              );
-            },
-            // Code block wrapper
-            pre: ({ children }) => (
-              <pre className="bg-gray-900 rounded-lg my-2 overflow-x-auto">
-                {children}
-              </pre>
-            ),
-            // Lists
             ul: ({ children }) => (
               <ul className="list-disc list-inside mb-2 space-y-1 text-gray-600">
                 {children}
@@ -92,26 +74,76 @@ export default function ChatMessage({
             li: ({ children }) => (
               <li className="leading-relaxed">{children}</li>
             ),
-            // Blockquote
             blockquote: ({ children }) => (
               <blockquote className="border-l-4 border-indigo-300 pl-3 my-2 text-gray-500 italic">
                 {children}
               </blockquote>
             ),
-            // Horizontal rule
             hr: () => <hr className="border-gray-200 my-3" />,
+
+            // Code — syntax highlighting wala
+            code({ inline, className, children }: CodeProps) {
+              const match = /language-(\w+)/.exec(className ?? "");
+              const language = match ? match[1] : "text";
+              const codeString = String(children).replace(/\n$/, "");
+
+              if (!inline && match) {
+                return (
+                  <div className="my-3 rounded-xl overflow-hidden">
+                    {/* Language label */}
+                    <div className="bg-gray-800 px-4 py-1.5 flex items-center justify-between">
+                      <span className="text-xs text-gray-400 font-mono">
+                        {language}
+                      </span>
+                      <button
+                        onClick={() =>
+                          void navigator.clipboard.writeText(codeString)
+                        }
+                        className="text-xs text-gray-400 hover:text-white transition-colors"
+                      >
+                        Copy code
+                      </button>
+                    </div>
+                    <SyntaxHighlighter
+                      style={oneDark}
+                      language={language}
+                      PreTag="div"
+                      customStyle={{
+                        margin: 0,
+                        borderRadius: 0,
+                        fontSize: "13px",
+                        padding: "16px",
+                      }}
+                    >
+                      {codeString}
+                    </SyntaxHighlighter>
+                  </div>
+                );
+              }
+
+              // Inline code
+              return (
+                <code className="bg-gray-100 text-indigo-600 text-xs px-1.5 py-0.5 rounded font-mono">
+                  {children}
+                </code>
+              );
+            },
           }}
         >
           {content}
         </ReactMarkdown>
-        {role === "assistant" && !isStreaming && content && (
+
+        {/* Copy full message */}
+        {!isStreaming && content && (
           <button
             onClick={() => void navigator.clipboard.writeText(content)}
-            className="mt-2 text-xs text-gray-300 hover:text-gray-500 transition-colors flex items-center gap-1"
+            className="mt-2 text-xs text-gray-300 hover:text-gray-500 transition-colors"
           >
             Copy
           </button>
         )}
+
+        {/* Streaming cursor */}
         {isStreaming && (
           <span className="inline-block w-1.5 h-4 bg-indigo-400 ml-1 animate-pulse rounded" />
         )}
