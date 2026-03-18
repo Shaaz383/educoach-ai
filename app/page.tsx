@@ -14,6 +14,7 @@ export default function Home() {
   const [hasLoadedHistory, setHasLoadedHistory] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [topics, setTopics] = useState<string[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -116,11 +117,25 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar topics={topics} onNewChat={handleNewChat} />
+      <Sidebar
+        topics={topics}
+        onNewChat={handleNewChat}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen((prev) => !prev)}
+      />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Navbar */}
         <div className="bg-white border-b border-gray-100 px-6 py-3.5 flex items-center gap-3 shrink-0">
+          {/* Hamburger — sirf mobile pe dikhega */}
+          <button
+            onClick={() => setSidebarOpen((prev) => !prev)}
+            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors mr-1"
+          >
+            <div className="w-5 h-0.5 bg-gray-600 mb-1"></div>
+            <div className="w-5 h-0.5 bg-gray-600 mb-1"></div>
+            <div className="w-5 h-0.5 bg-gray-600"></div>
+          </button>
           <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center shrink-0">
             <span className="text-indigo-600 text-xs font-bold">E</span>
           </div>
