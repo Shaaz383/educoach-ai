@@ -1,28 +1,29 @@
 "use client";
 import { useState } from "react";
 import Sidebar from "./components/Sidebar";
+import ChatMessage from "./components/ChatMessage";
 
-type ChatMessage = {
+interface Message {
   role: "user" | "assistant";
   content: string;
-};
+}
 
 export default function Home() {
-  const [message, setMessage] = useState("");
-  const [history, setHistory] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string>("");
+  const [history, setHistory] = useState<Message[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
   const [topics, setTopics] = useState<string[]>([]);
 
-  function handleNewChat() {
+  function handleNewChat(): void {
     setHistory([]);
     setMessage("");
   }
 
-  async function sendMessage() {
+  async function sendMessage(): Promise<void> {
     if (!message.trim() || loading) return;
     setLoading(true);
 
-    const newHistory: ChatMessage[] = [
+    const newHistory: Message[] = [
       ...history,
       { role: "user", content: message },
     ];
@@ -41,12 +42,12 @@ export default function Home() {
       body: JSON.stringify({ messages: newHistory }),
     });
 
-    // Streaming response handle karo
     if (res.headers.get("content-type")?.includes("text/plain")) {
       if (!res.body) {
         setLoading(false);
         return;
       }
+
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let fullReply = "";
@@ -65,13 +66,12 @@ export default function Home() {
         });
       }
     } else {
-      // Fallback JSON response
-      const data = await res.json();
+      const data = (await res.json()) as { reply?: string };
       setHistory((prev) => {
         const updated = [...prev];
         updated[updated.length - 1] = {
           role: "assistant",
-          content: data.reply || "Something went wrong.",
+          content: data.reply ?? "Something went wrong.",
         };
         return updated;
       });
@@ -80,7 +80,7 @@ export default function Home() {
     setLoading(false);
   }
 
-  const suggestions = [
+  const suggestions: string[] = [
     "Explain React hooks with examples",
     "What is an AI Agent?",
     "Generate 5 JavaScript quiz questions",
@@ -101,7 +101,9 @@ export default function Home() {
           </div>
           <div>
             <p className="font-semibold text-gray-800 text-sm">EduCoach AI</p>
-            <p className="text-xs text-gray-400">Your personal learning assistant</p>
+            <p className="text-xs text-gray-400">
+              Your personal learning assistant
+            </p>
           </div>
           <div className="ml-auto flex items-center gap-1.5">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -111,6 +113,7 @@ export default function Home() {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-4">
+          {/* Welcome Screen */}
           {history.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full gap-6 text-center">
               <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-lg">
@@ -121,7 +124,8 @@ export default function Home() {
                   Welcome to EduCoach AI
                 </h2>
                 <p className="text-gray-400 mt-2 text-sm max-w-sm leading-relaxed">
-                  Ask me anything — concepts, code, interview prep, or practice questions.
+                  Ask me anything — concepts, code, interview prep, or practice
+                  questions.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 justify-center max-w-lg">
@@ -138,38 +142,18 @@ export default function Home() {
             </div>
           )}
 
+          {/* Chat Messages — ChatMessage component use ho raha hai ab */}
           {history.map((msg, i) => (
-            <div
+            <ChatMessage
               key={i}
-              className={`flex gap-3 ${
-                msg.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              {msg.role === "assistant" && (
-                <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 mt-1">
-                  E
-                </div>
-              )}
-              <div
-                className={`max-w-lg px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-                  msg.role === "user"
-                    ? "bg-indigo-600 text-white rounded-tr-sm"
-                    : "bg-white border border-gray-100 text-gray-700 rounded-tl-sm shadow-sm"
-                }`}
-              >
-                {msg.content}
-                {msg.role === "assistant" &&
-                  i === history.length - 1 &&
-                  loading && (
-                    <span className="inline-block w-1.5 h-4 bg-indigo-400 ml-1 animate-pulse rounded" />
-                  )}
-              </div>
-              {msg.role === "user" && (
-                <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 text-xs font-bold shrink-0 mt-1">
-                  U
-                </div>
-              )}
-            </div>
+              role={msg.role}
+              content={msg.content}
+              isStreaming={
+                loading &&
+                i === history.length - 1 &&
+                msg.role === "assistant"
+              }
+            />
           ))}
         </div>
 
@@ -185,12 +169,12 @@ export default function Home() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey && !loading) {
                   e.preventDefault();
-                  sendMessage();
+                  void sendMessage();
                 }
               }}
             />
             <button
-              onClick={sendMessage}
+              onClick={() => void sendMessage()}
               disabled={loading || !message.trim()}
               className="bg-indigo-600 hover:bg-indigo-700 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-white px-5 py-3 rounded-xl text-sm font-semibold transition-all shrink-0"
             >
@@ -204,4 +188,4 @@ export default function Home() {
       </div>
     </div>
   );
-}  
+}
