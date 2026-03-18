@@ -13,6 +13,7 @@ export default function Home() {
   const [history, setHistory] = useState<Message[]>([]);
   const [hasLoadedHistory, setHasLoadedHistory] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [status, setStatus] = useState<string>("");
   const [topics, setTopics] = useState<string[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -48,6 +49,7 @@ export default function Home() {
   async function sendMessage(): Promise<void> {
     if (!message.trim() || loading) return;
     setLoading(true);
+    setStatus("Thinking...");
 
     const newHistory: Message[] = [
       ...history,
@@ -74,6 +76,9 @@ export default function Home() {
       body: JSON.stringify({ messages: newHistoryForApi }),
     });
 
+    const toolStatus = res.headers.get("x-tool-status");
+    if (toolStatus) setStatus(toolStatus);
+
     if (!res.ok) {
       try {
         const data = (await res.json()) as { error?: string };
@@ -96,6 +101,7 @@ export default function Home() {
           return updated;
         });
       } finally {
+        setStatus("");
         setLoading(false);
       }
       return;
@@ -136,6 +142,7 @@ export default function Home() {
       });
     }
 
+    setStatus("");
     setLoading(false);
   }
 
@@ -179,8 +186,19 @@ export default function Home() {
             </p>
           </div>
           <div className="ml-auto flex items-center gap-1.5">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            <span className="text-xs text-gray-400">Online</span>
+            {loading ? (
+              <>
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                <span className="text-xs text-gray-400">
+                  {status || "Thinking..."}
+                </span>
+              </>
+            ) : (
+              <>
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-xs text-gray-400">Online</span>
+              </>
+            )}
           </div>
         </div>
 

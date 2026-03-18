@@ -161,7 +161,8 @@ async function runTool(
 }
 
 function createStream(
-  groqStream: AsyncIterable<Groq.Chat.ChatCompletionChunk>
+  groqStream: AsyncIterable<Groq.Chat.ChatCompletionChunk>,
+  statusMessage?: string
 ): Response {
   const encoder = new TextEncoder();
   const readable = new ReadableStream({
@@ -174,6 +175,24 @@ function createStream(
     },
   });
 
+  const headers: Record<string, string> = {
+    "Content-Type": "text/plain; charset=utf-8",
+  };
+  if (statusMessage) {
+    headers["X-Tool-Status"] = statusMessage;
+  }
+
+  return new Response(readable, { headers });
+}
+
+function createTextStream(text: string): Response {
+  const encoder = new TextEncoder();
+  const readable = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(text));
+      controller.close();
+    },
+  });
   return new Response(readable, {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
@@ -256,13 +275,21 @@ Always respond in clear English.`,
         const toolName = toolCall.function.name;
         const toolArgs = JSON.parse(toolCall.function.arguments) as ToolArgs;
 
-        console.log(`Tool used: ${toolName}`, toolArgs);
-        const toolResult = await runTool(toolName, toolArgs);
-        console.log(`Tool result: ${toolResult}`);
+      console.log(`Tool used: ${toolName}`, toolArgs);
+      const toolResult = await runTool(toolName, toolArgs);
+      console.log(`Tool result: ${toolResult}`);
+      const toolStatusMessages: Record<string, string> = {
+        calculator: "Calculating...",
+        generate_quiz: "Generating quiz...",
+        search_wikipedia: "Searching Wikipedia...",
+        get_weather: "Fetching weather...",
+      };
+      const statusMessage =
+        toolStatusMessages[toolName] ?? "Working...";
 
-        // Step 3 - Streaming final response
-        const stream = await client.chat.completions.create({
-          model: "llama-3.3-70b-versatile",
+      // Step 3 - Streaming final response
+      const stream = await client.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
           messages: [
             ...allMessages,
             assistantMessage,
@@ -276,8 +303,8 @@ Always respond in clear English.`,
           stream: true,
         });
 
-        return createStream(stream);
-      }
+      return createStream(stream, statusMessage);
+    }
     }
 
     // Step 4 - Normal streaming
