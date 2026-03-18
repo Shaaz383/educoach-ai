@@ -19,6 +19,7 @@ type ToolArgs = {
   topic?: string;
   count?: number;
   city?: string;
+  query?: string;
 };
 
 const tools: Groq.Chat.ChatCompletionTool[] = [
@@ -57,6 +58,25 @@ const tools: Groq.Chat.ChatCompletionTool[] = [
           },
         },
         required: ["topic", "count"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_wikipedia",
+      description:
+        "Search Wikipedia for information about any topic, person, place, or concept",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "Search query e.g. 'React JavaScript library', 'Alan Turing'",
+          },
+        },
+        required: ["query"],
       },
     },
   },
@@ -112,6 +132,31 @@ async function runTool(
     }
   }
 
+  if (name === "search_wikipedia") {
+    try {
+      if (!args.query) return "Search query not provided.";
+      const query = encodeURIComponent(String(args.query));
+      const res = await fetch(
+        `https://en.wikipedia.org/api/rest_v1/page/summary/${query}`
+      );
+      const data = (await res.json()) as {
+        title?: string;
+        extract?: string;
+        content_urls?: { desktop?: { page?: string } };
+      };
+
+      if (data.extract) {
+        return `Wikipedia — ${data.title ?? ""}:\n\n${data.extract}\n\nSource: ${
+          data.content_urls?.desktop?.page ?? ""
+        }`;
+      }
+
+      return `No Wikipedia article found for: ${String(args.query)}`;
+    } catch {
+      return "Wikipedia search failed. Please try again.";
+    }
+  }
+
   return "Tool not found";
 }
 
@@ -163,6 +208,7 @@ You can help with:
 - Reviewing and explaining code
 - Interview preparation
 - Study planning
+- Use search_wikipedia tool when asked about any person, place, concept, or topic that needs factual information.
 
 When explaining code, explain it line by line.
 When generating quiz, format it cleanly with options A, B, C, D.
