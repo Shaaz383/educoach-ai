@@ -220,47 +220,64 @@ Always respond in clear English.`,
       ...messages,
     ];
 
-    // Step 1 - Tool check
-    const toolCheck = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: allMessages,
-      tools,
-      tool_choice: "auto",
-      max_tokens: 1024,
-    });
+    let toolCheck:
+      | Groq.Chat.ChatCompletion
+      | null = null;
 
-    const aiMessage = toolCheck.choices[0].message;
-    const assistantMessage =
-      aiMessage as Groq.Chat.ChatCompletionMessageParam;
-    const toolCalls = aiMessage.tool_calls as ToolCall[] | undefined;
-
-    // Step 2 - Tool use kiya?
-    if (toolCalls && toolCalls.length > 0) {
-      const toolCall = toolCalls[0];
-      const toolName = toolCall.function.name;
-      const toolArgs = JSON.parse(toolCall.function.arguments) as ToolArgs;
-
-      console.log(`Tool used: ${toolName}`, toolArgs);
-      const toolResult = await runTool(toolName, toolArgs);
-      console.log(`Tool result: ${toolResult}`);
-
-      // Step 3 - Streaming final response
-      const stream = await client.chat.completions.create({
+    try {
+      // Step 1 - Tool check
+      toolCheck = await client.chat.completions.create({
         model: "llama-3.3-70b-versatile",
-        messages: [
-          ...allMessages,
-          assistantMessage,
-          {
-            role: "tool",
-            tool_call_id: toolCall.id,
-            content: toolResult,
-          },
-        ],
-        max_tokens: 2048,
-        stream: true,
+        messages: allMessages,
+        tools,
+        tool_choice: "auto",
+        max_tokens: 1024,
       });
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : String(err ?? "");
+      if (msg.includes("tool_use_failed") || msg.includes("failed_generation")) {
+        // Fallback: continue without tools
+        toolCheck = null;
+      } else {
+        throw err;
+      }
+    }
 
-      return createStream(stream);
+    if (toolCheck) {
+      const aiMessage = toolCheck.choices[0].message;
+      const assistantMessage =
+        aiMessage as Groq.Chat.ChatCompletionMessageParam;
+      const toolCalls = aiMessage.tool_calls as ToolCall[] | undefined;
+
+      // Step 2 - Tool use kiya?
+      if (toolCalls && toolCalls.length > 0) {
+        const toolCall = toolCalls[0];
+        const toolName = toolCall.function.name;
+        const toolArgs = JSON.parse(toolCall.function.arguments) as ToolArgs;
+
+        console.log(`Tool used: ${toolName}`, toolArgs);
+        const toolResult = await runTool(toolName, toolArgs);
+        console.log(`Tool result: ${toolResult}`);
+
+        // Step 3 - Streaming final response
+        const stream = await client.chat.completions.create({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            ...allMessages,
+            assistantMessage,
+            {
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: toolResult,
+            },
+          ],
+          max_tokens: 2048,
+          stream: true,
+        });
+
+        return createStream(stream);
+      }
     }
 
     // Step 4 - Normal streaming

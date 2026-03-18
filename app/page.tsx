@@ -62,11 +62,44 @@ export default function Home() {
 
     setMessage("");
 
+    const historyForApi = history.slice(-12);
+    const newHistoryForApi: Message[] = [
+      ...historyForApi,
+      { role: "user", content: message },
+    ];
+
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: newHistory }),
+      body: JSON.stringify({ messages: newHistoryForApi }),
     });
+
+    if (!res.ok) {
+      try {
+        const data = (await res.json()) as { error?: string };
+        const errorMsg = data.error ?? "Something went wrong.";
+        setHistory((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            role: "assistant",
+            content: errorMsg,
+          };
+          return updated;
+        });
+      } catch {
+        setHistory((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            role: "assistant",
+            content: "Something went wrong.",
+          };
+          return updated;
+        });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     if (res.headers.get("content-type")?.includes("text/plain")) {
       if (!res.body) {
